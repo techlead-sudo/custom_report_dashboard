@@ -37,8 +37,9 @@ class DashboardReport(models.Model):
     def sync_dashboard_data(self):
         """
         Sync data from daily_work_report and daily_tasks into dashboard.report.
+        Performs incremental updates (upserts) instead of full deletion.
         """
-        self.env['dashboard.report'].search([]).unlink()
+        # Removed: self.env['dashboard.report'].search([]).unlink()
 
         # Sync from daily_work_report (employee.report and report)
         employee_reports = self.env['employee.report'].search([])
@@ -51,18 +52,35 @@ class DashboardReport(models.Model):
                         total_hours += h + m/60.0
                     except Exception:
                         pass
-            self.env['dashboard.report'].create({
-                'name': f"DWR {emp_rep.name.name if emp_rep.name else ''} {emp_rep.date}",
+            
+            # Upsert DWR record
+            report_name = f"DWR {emp_rep.name.name if emp_rep.name else ''} {emp_rep.date}"
+            vals = {
+                'name': report_name,
                 'report_date': emp_rep.date,
                 'employee_id': emp_rep.name.id if emp_rep.name else False,
                 'department_id': emp_rep.department_id.id if emp_rep.department_id else False,
                 'working_hours': total_hours,
                 'report_type': 'dwr',
-                'submitted_on': False,
+                'submitted_on': False, # DWR in this module context seems to not track specific submission time for the report itself unless we add it, but existing logic had False. Keeping consistent but safe.
+                # Actually, check if we can get submission time from somewhere? The other sync logic used False. 
+                # Let's keep it as is for now to match original logic but just upsert.
                 'is_late': False,
                 'is_missed': False,
                 'manager_marks': 0,
-            })
+            }
+            
+            # Try to find existing record to update
+            existing = self.env['dashboard.report'].search([
+                ('report_type', '=', 'dwr'),
+                ('employee_id', '=', vals['employee_id']),
+                ('report_date', '=', vals['report_date'])
+            ], limit=1)
+            
+            if existing:
+                existing.write(vals)
+            else:
+                self.env['dashboard.report'].create(vals)
 
         # Sync from daily_tasks (daily.task)
         daily_tasks = self.env['daily.task'].search([])
@@ -70,45 +88,80 @@ class DashboardReport(models.Model):
             emp_name = task.employee_id.name if task.employee_id else ''
             emp_id = task.employee_id.id if task.employee_id else False
             dept_id = task.department_id.id if task.department_id else False
-            # Create explicit POD record
+            
+            # Upsert POD record
             try:
-                self.env['dashboard.report'].create({
-                    'name': f"POD {emp_name} {task.date}",
+                pod_name = f"POD {emp_name} {task.date}"
+                pod_vals = {
+                    'name': pod_name,
                     'report_date': task.date,
                     'employee_id': emp_id,
                     'department_id': dept_id,
                     'working_hours': 0.0,
                     'report_type': 'pod',
                     'submitted_on': task.pod_submitted_date if getattr(task, 'pod_submitted', False) else False,
-                    'is_late': False,
+                    'is_late': False, # Computed field will handle logic if triggered, but here we set initial
                     'is_missed': not getattr(task, 'pod_submitted', False),
                     'manager_marks': 0,
-                })
+                }
+                
+                existing_pod = self.env['dashboard.report'].search([
+                    ('report_type', '=', 'pod'),
+                    ('employee_id', '=', emp_id),
+                    ('report_date', '=', task.date)
+                ], limit=1)
+                
+                if existing_pod:
+                    existing_pod.write(pod_vals)
+                else:
+                    self.env['dashboard.report'].create(pod_vals)
             except Exception:
                 pass
 
-            # Create explicit SOD record
+            # Upsert SOD record
             # Consider SOD submitted when state == 'done' or sod_description present
             sod_submitted = False
             if getattr(task, 'state', False) == 'done':
                 sod_submitted = True
             if getattr(task, 'sod_description', False):
                 sod_submitted = True
+            
             try:
-                self.env['dashboard.report'].create({
-                    'name': f"SOD {emp_name} {task.date}",
+                sod_name = f"SOD {emp_name} {task.date}"
+                sod_vals = {
+                    'name': sod_name,
                     'report_date': task.date,
                     'employee_id': emp_id,
                     'department_id': dept_id,
                     'working_hours': 0.0,
                     'report_type': 'sod',
-                    'submitted_on': fields.Datetime.now() if sod_submitted else False,
+                    'submitted_on': fields.Datetime.now() if sod_submitted else False, # Note: using now() for sync might be inaccurate if repeated. Ideally should be stored on task. Assuming acceptable for now.
                     'is_late': False,
-                    # `is_missed` is computed from `submitted_on` (stored computed field),
-                    # so we don't rely on passing it here.
-                    'is_missed': False,
+                    'is_missed': False, # logic handled by computed
                     'manager_marks': 0,
-                })
+                }
+                # Fix: Don't overwrite submitted_on with now() if it's already set? 
+                # The original logic used fields.Datetime.now() if sod_submitted. 
+                # Only strictly correct if we captured that time previously.
+                # For upsert, if we already have a record and it has submitted_on, we might want to keep it?
+                # But original logic had no history, so it always reset. 
+                # Let's keep original behavior for now but wrapped in upsert.
+                
+                existing_sod = self.env['dashboard.report'].search([
+                    ('report_type', '=', 'sod'),
+                    ('employee_id', '=', emp_id),
+                    ('report_date', '=', task.date)
+                ], limit=1)
+                
+                if existing_sod:
+                    # If already submitted, don't update submitted_on with now() to avoid shifting time?
+                    # Original logic: always now() if submitted.
+                    # We should probably respect existing if it exists.
+                    if existing_sod.submitted_on:
+                        sod_vals['submitted_on'] = existing_sod.submitted_on
+                    existing_sod.write(sod_vals)
+                else:
+                    self.env['dashboard.report'].create(sod_vals)
             except Exception:
                 pass
 
@@ -355,10 +408,8 @@ class MissedReport(models.Model):
     @api.model
     def sync_missed_reports(self):
         """Rebuild missed report records from dashboard.report data."""
-        # Remove existing entries
-        existing = self.search([])
-        if existing:
-            existing.unlink()
+        # Removed full delete: existing = self.search([]); if existing: existing.unlink()
+
         # Count only from first day of current month up to today (inclusive)
         today_str = fields.Date.context_today(self)
         try:

@@ -12,7 +12,7 @@
     ],
     'assets': {
         'web.assets_backend': [
-            'custom_dashboard/static/src/css/dashboard_report.css',
+            'custom_report_dashboard/static/src/css/dashboard_report.css',
         ],
     },
     'installable': True,
