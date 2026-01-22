@@ -1,0 +1,24 @@
+<odoo>
+    <record id="ir_cron_dashboard_report_sync" model="ir.cron">
+        <field name="name">Sync Dashboard Report Data</field>
+        <field name="model_id" ref="model_dashboard_report"/>
+        <field name="state">code</field>
+        <field name="code">model.sync_dashboard_data()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+    </record>
+
+    <record id="ir_cron_dashboard_missed_report_sync" model="ir.cron">
+        <field name="name">Sync Dashboard Missed Reports (daily)</field>
+        <field name="model_id" ref="model_dashboard_missed_report"/>
+        <field name="state">code</field>
+        <field name="code">model.sync_missed_reports()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="nextcall">2025-12-28 06:00:00</field>
+        <field name="active">True</field>
+    </record>
+</odoo>

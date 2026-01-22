@@ -1,0 +1,41 @@
+/* Color the entire row based on tag */
+.o_list_view .o_data_row.o_row_tag_red td {
+    background-color: #f8d7da !important;
+    color: #a94442 !important;
+}
+.o_list_view .o_data_row.o_row_tag_blue td {
+    background-color: #dbeafe !important;
+    color: #084298 !important;
+}
+.o_list_view .o_data_row.o_row_tag_green td {
+    background-color: #d1e7dd !important;
+    color: #0f5132 !important;
+}
+/* Also support Odoo decoration classes applied via decoration-danger/info/success */
+.o_list_view .o_data_row.o_decoration_danger td {
+    background-color: #f8d7da !important;
+    color: #a94442 !important;
+}
+.o_list_view .o_data_row.o_decoration_info td {
+    background-color: #dbeafe !important;
+    color: #084298 !important;
+}
+.o_list_view .o_data_row.o_decoration_success td {
+    background-color: #d1e7dd !important;
+    color: #0f5132 !important;
+}
+.o_list_view .o_data_row .o_field_widget.o_field_badge .o_badge_red {
+    color: #fff;
+    background-color: #d9534f;
+    font-weight: bold;
+}
+.o_list_view .o_data_row .o_field_widget.o_field_badge .o_badge_blue {
+    color: #fff;
+    background-color: #0275d8;
+    font-weight: bold;
+}
+.o_list_view .o_data_row .o_field_widget.o_field_badge .o_badge_green {
+    color: #fff;
+    background-color: #5cb85c;
+    font-weight: bold;
+}
