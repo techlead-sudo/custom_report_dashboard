@@ -59,6 +59,18 @@
         </field>
     </record>
 
+    <record id="view_dashboard_report_calendar" model="ir.ui.view">
+        <field name="name">dashboard.report.calendar</field>
+        <field name="model">dashboard.report</field>
+        <field name="arch" type="xml">
+            <calendar string="Dashboard Reports" date_start="report_date" color="employee_id" mode="month">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="working_hours"/>
+            </calendar>
+        </field>
+    </record>
+
     <!-- Search view: current month filter and date selector -->
     <record id="view_dashboard_report_search" model="ir.ui.view">
         <field name="name">dashboard.report.search</field>
@@ -85,6 +97,7 @@
 
                 <separator/>
                 <group string="Group By">
+                    <filter string="Date" name="group_date" context="{'group_by': 'report_date:day'}"/>
                     <filter string="Employee" name="group_employee" context="{'group_by': 'employee_id'}"/>
                     <filter string="Department" name="group_department" context="{'group_by': 'department_id'}"/>
                     <filter string="Tag" name="group_tag" context="{'group_by': 'tag'}"/>
@@ -97,7 +110,7 @@
     <record id="action_dashboard_overview" model="ir.actions.act_window">
         <field name="name">Dashboard Overview</field>
         <field name="res_model">dashboard.report</field>
-        <field name="view_mode">tree,graph</field>
+        <field name="view_mode">tree,graph,calendar</field>
         <field name="views" eval="[(ref('view_dashboard_report_tree'), 'tree'), (ref('view_dashboard_report_graph'), 'graph')]"/>
         <field name="context">{"search_default_current_month": 1}</field>
         <field name="search_view_id" ref="view_dashboard_report_search"/>
@@ -188,6 +201,7 @@
         <field name="model">dashboard.report</field>
         <field name="arch" type="xml">
             <tree decoration-danger="tag == 'red'" decoration-info="tag == 'blue'" decoration-success="tag == 'green'">
+                <field name="report_date" string="Date"/>
                 <field name="employee_id" string="Employee"/>
                 <field name="department_id" string="Department"/>
                 <field name="working_hours" string="Working Hour"/>
@@ -199,7 +213,7 @@
     <record id="action_dashboard_by_employee_day" model="ir.actions.act_window">
         <field name="name">By Employee (Daily Work Hours)</field>
         <field name="res_model">dashboard.report</field>
-        <field name="view_mode">tree,graph</field>
+        <field name="view_mode">tree,graph,calendar</field>
         <field name="views" eval="[(ref('view_dashboard_report_employee_daily_tree'), 'tree'), (ref('view_dashboard_report_graph'), 'graph')]"/>
         <field name="domain">[('report_type','=','dwr')]</field>
         <field name="context">{"search_default_groupby_employee_id":1, "search_default_current_month": 1}</field>
@@ -219,7 +233,7 @@
     <record id="action_dashboard_by_employee_tag" model="ir.actions.act_window">
         <field name="name">By Employee (Hours Tag)</field>
         <field name="res_model">dashboard.report</field>
-        <field name="view_mode">tree,graph</field>
+        <field name="view_mode">tree,graph,calendar</field>
         <field name="views" eval="[(ref('view_dashboard_report_tree'), 'tree'), (ref('view_dashboard_report_graph'), 'graph')]"/>
         <field name="context">{"group_by": ["employee_id", "tag"], "search_default_current_month": 1}</field>
         <field name="search_view_id" ref="view_dashboard_report_search"/>
@@ -251,7 +265,7 @@
     </record>
 
     <!-- Menus -->
-    <menuitem id="menu_dashboard_report_root" name="Dashboard" sequence="10" action="action_dashboard_overview"/>
+    <menuitem id="menu_dashboard_report_root" name="Dashboard" sequence="10" action="action_dashboard_overview" groups="hr.group_hr_manager"/>
     <menuitem id="menu_dashboard_by_employee_day" name="By Employee (Daily Work Hours)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_day" sequence="10"/>
     <!-- Removed: By Department (Daily Work Hours) menu was intentionally removed -->
     <menuitem id="menu_dashboard_by_employee_tag" name="By Employee (Hours Tag: blue/red/green)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_tag" sequence="30"/>

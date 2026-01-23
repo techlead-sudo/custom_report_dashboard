@@ -1,9 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_dashboard_report_user,dashboard.report.user,model_dashboard_report,base.group_user,1,0,0,0
-access_dashboard_report_manager,dashboard.report.manager,model_dashboard_report,base.group_system,1,1,1,1
-access_dashboard_missed_report_user,dashboard.missed.report.user,model_dashboard_missed_report,base.group_user,1,0,0,0
-access_dashboard_missed_report_manager,dashboard.missed.report.manager,model_dashboard_missed_report,base.group_system,1,1,1,1
-access_dashboard_employee_month_user,dashboard.employee.month.user,model_dashboard_employee_monthly,,1,0,0,0
-access_dashboard_employee_month_manager,dashboard.employee.month.manager,model_dashboard_employee_monthly,base.group_system,1,1,1,1
-access_dashboard_department_month_user,dashboard.department.month.user,model_dashboard_department_monthly,base.group_user,1,0,0,0
-access_dashboard_department_month_manager,dashboard.department.month.manager,model_dashboard_department_monthly,base.group_system,1,1,1,1
+access_dashboard_report_manager,dashboard.report.manager,model_dashboard_report,hr.group_hr_manager,1,1,1,1
+access_dashboard_missed_report_manager,dashboard.missed.report.manager,model_dashboard_missed_report,hr.group_hr_manager,1,1,1,1
+access_dashboard_employee_month_manager,dashboard.employee.month.manager,model_dashboard_employee_monthly,hr.group_hr_manager,1,1,1,1
+access_dashboard_department_month_manager,dashboard.department.month.manager,model_dashboard_department_monthly,hr.group_hr_manager,1,1,1,1
