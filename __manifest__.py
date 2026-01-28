@@ -7,6 +7,7 @@
     'depends': ['base', 'hr'],
     'data': [
         'views/dashboard_report_views.xml',
+        'security/dashboard_security.xml',
         'security/ir.model.access.csv',
         'data/dashboard_report_cron.xml',
     ],

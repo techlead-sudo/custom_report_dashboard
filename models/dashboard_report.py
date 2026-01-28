@@ -25,7 +25,8 @@ class DashboardReport(models.Model):
     tag = fields.Selection([
         ('red', 'Red'),
         ('blue', 'Blue'),
-        ('green', 'Green')
+        ('green', 'Green'),
+        ('leave', 'Leave')
     ], string='Tag', compute='_compute_tag', store=True)
     report_month = fields.Char('Report Month', compute='_compute_report_month', store=True)
     is_current_month = fields.Boolean('Is Current Month', compute='_compute_is_current_month', store=True)
@@ -302,7 +303,9 @@ class DashboardReport(models.Model):
     @api.depends('working_hours')
     def _compute_tag(self):
         for rec in self:
-            if rec.working_hours < 8:
+            if rec.working_hours == 0:
+                rec.tag = 'leave'
+            elif rec.working_hours < 8:
                 rec.tag = 'red'
             elif rec.working_hours > 10:
                 rec.tag = 'green'
@@ -399,6 +402,7 @@ class MissedReport(models.Model):
     has_tag_red = fields.Boolean('Has Missed with Red Tag', compute='_compute_missed_flags', store=True)
     has_tag_blue = fields.Boolean('Has Missed with Blue Tag', compute='_compute_missed_flags', store=True)
     has_tag_green = fields.Boolean('Has Missed with Green Tag', compute='_compute_missed_flags', store=True)
+    has_tag_leave = fields.Boolean('Has Missed with Leave Tag', compute='_compute_missed_flags', store=True)
 
     @api.depends('missed_pod', 'missed_sod', 'missed_dwr')
     def _compute_total(self):
@@ -517,6 +521,9 @@ class MissedReport(models.Model):
             ]) > 0
             rec.has_tag_green = self.env['dashboard.report'].search_count([
                 ('employee_id', '=', emp_id), ('is_missed', '=', True), ('tag', '=', 'green')
+            ]) > 0
+            rec.has_tag_leave = self.env['dashboard.report'].search_count([
+                ('employee_id', '=', emp_id), ('is_missed', '=', True), ('tag', '=', 'leave')
             ]) > 0
 
 

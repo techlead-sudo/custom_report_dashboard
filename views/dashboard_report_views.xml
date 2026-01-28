@@ -14,6 +14,7 @@
                     <filter string="Red" name="missed_tag_red" domain="[('has_tag_red','=',True)]"/>
                     <filter string="Blue" name="missed_tag_blue" domain="[('has_tag_blue','=',True)]"/>
                     <filter string="Green" name="missed_tag_green" domain="[('has_tag_green','=',True)]"/>
+                    <filter string="Leave" name="missed_tag_leave" domain="[('has_tag_leave','=',True)]"/>
                 </group>
             </search>
         </field>
@@ -93,6 +94,7 @@
                     <filter string="Red" name="tag_red" domain="[('tag', '=', 'red')]"/>
                     <filter string="Blue" name="tag_blue" domain="[('tag', '=', 'blue')]"/>
                     <filter string="Green" name="tag_green" domain="[('tag', '=', 'green')]"/>
+                    <filter string="Leave" name="tag_leave" domain="[('tag', '=', 'leave')]"/>
                 </group>
 
                 <separator/>
@@ -200,7 +202,7 @@
         <field name="name">dashboard.report.employee.daily.tree</field>
         <field name="model">dashboard.report</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="tag == 'red'" decoration-info="tag == 'blue'" decoration-success="tag == 'green'">
+            <tree decoration-danger="tag == 'red'" decoration-info="tag == 'blue'" decoration-success="tag == 'green'" decoration-muted="tag == 'leave'">
                 <field name="report_date" string="Date"/>
                 <field name="employee_id" string="Employee"/>
                 <field name="department_id" string="Department"/>
@@ -265,11 +267,17 @@
     </record>
 
     <!-- Menus -->
-    <menuitem id="menu_dashboard_report_root" name="Dashboard" sequence="10" action="action_dashboard_overview" groups="hr.group_hr_manager"/>
+    <!-- Menus -->
+    <menuitem id="menu_dashboard_report_root" name="Dashboard" sequence="10" action="action_dashboard_overview" groups="custom_report_dashboard.group_dashboard_manager"/>
     <menuitem id="menu_dashboard_by_employee_day" name="By Employee (Daily Work Hours)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_day" sequence="10"/>
     <!-- Removed: By Department (Daily Work Hours) menu was intentionally removed -->
     <menuitem id="menu_dashboard_by_employee_tag" name="By Employee (Hours Tag: blue/red/green)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_tag" sequence="30"/>
     <menuitem id="menu_dashboard_by_employee_month" name="By Employee (Monthly Work Hours)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_month" sequence="40"/>
     <menuitem id="menu_dashboard_by_department_month" name="By Department (Monthly Work Hours)" parent="menu_dashboard_report_root" action="action_dashboard_by_department_month" sequence="50"/>
     <menuitem id="menu_dashboard_missed_reports" name="Missed Reports (POD/SOD/DWR)" parent="menu_dashboard_report_root" action="action_dashboard_missed_reports" sequence="15"/>
+
+    <!-- Restrict Standard Employee Menu to Officer/Admin only -->
+    <record id="hr.menu_hr_root" model="ir.ui.menu">
+        <field name="groups_id" eval="[(6, 0, [ref('hr.group_hr_manager'), ref('hr.group_hr_user')])]"/>
+    </record>
 </odoo>

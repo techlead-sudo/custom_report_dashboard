@@ -1,5 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_dashboard_report_manager,dashboard.report.manager,model_dashboard_report,hr.group_hr_manager,1,1,1,1
-access_dashboard_missed_report_manager,dashboard.missed.report.manager,model_dashboard_missed_report,hr.group_hr_manager,1,1,1,1
-access_dashboard_employee_month_manager,dashboard.employee.month.manager,model_dashboard_employee_monthly,hr.group_hr_manager,1,1,1,1
-access_dashboard_department_month_manager,dashboard.department.month.manager,model_dashboard_department_monthly,hr.group_hr_manager,1,1,1,1
+access_dashboard_report_manager,dashboard.report.manager,model_dashboard_report,custom_report_dashboard.group_dashboard_manager,1,1,1,1
+access_dashboard_missed_report_manager,dashboard.missed.report.manager,model_dashboard_missed_report,custom_report_dashboard.group_dashboard_manager,1,1,1,1
+access_dashboard_employee_month_manager,dashboard.employee.month.manager,model_dashboard_employee_monthly,custom_report_dashboard.group_dashboard_manager,1,1,1,1
+access_dashboard_department_month_manager,dashboard.department.month.manager,model_dashboard_department_monthly,custom_report_dashboard.group_dashboard_manager,1,1,1,1
