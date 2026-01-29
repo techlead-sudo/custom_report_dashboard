@@ -268,7 +268,8 @@
 
     <!-- Menus -->
     <!-- Menus -->
-    <menuitem id="menu_dashboard_report_root" name="Dashboard" sequence="10" action="action_dashboard_overview" groups="custom_report_dashboard.group_dashboard_manager"/>
+    <menuitem id="menu_dashboard_report_root" name="Dashboard" sequence="1"/>
+    <menuitem id="menu_dashboard_overview" name="Overview" parent="menu_dashboard_report_root" action="action_dashboard_overview" sequence="1"/>
     <menuitem id="menu_dashboard_by_employee_day" name="By Employee (Daily Work Hours)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_day" sequence="10"/>
     <!-- Removed: By Department (Daily Work Hours) menu was intentionally removed -->
     <menuitem id="menu_dashboard_by_employee_tag" name="By Employee (Hours Tag: blue/red/green)" parent="menu_dashboard_report_root" action="action_dashboard_by_employee_tag" sequence="30"/>
