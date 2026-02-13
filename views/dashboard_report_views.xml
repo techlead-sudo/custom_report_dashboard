@@ -14,7 +14,6 @@
                     <filter string="Red" name="missed_tag_red" domain="[('has_tag_red','=',True)]"/>
                     <filter string="Blue" name="missed_tag_blue" domain="[('has_tag_blue','=',True)]"/>
                     <filter string="Green" name="missed_tag_green" domain="[('has_tag_green','=',True)]"/>
-                    <filter string="Leave" name="missed_tag_leave" domain="[('has_tag_leave','=',True)]"/>
                 </group>
             </search>
         </field>
@@ -94,7 +93,6 @@
                     <filter string="Red" name="tag_red" domain="[('tag', '=', 'red')]"/>
                     <filter string="Blue" name="tag_blue" domain="[('tag', '=', 'blue')]"/>
                     <filter string="Green" name="tag_green" domain="[('tag', '=', 'green')]"/>
-                    <filter string="Leave" name="tag_leave" domain="[('tag', '=', 'leave')]"/>
                 </group>
 
                 <separator/>
@@ -144,7 +142,11 @@
             <search>
                 <field name="employee_id"/>
                 <field name="department_id"/>
-                <!-- No filters referencing report_type or tag -->
+                <field name="report_month"/>
+                <group string="Group By">
+                    <filter string="Month" name="group_month" context="{'group_by': 'report_month'}"/>
+                    <filter string="Department" name="group_department" context="{'group_by': 'department_id'}"/>
+                </group>
             </search>
         </field>
     </record>
@@ -155,7 +157,7 @@
         <field name="view_mode">tree</field>
         <field name="views" eval="[(ref('view_dashboard_employee_month_tree'), 'tree')]"/>
         <field name="domain" eval="[]"/>
-        <field name="context">{"search_default_current_month": 1}</field>
+        <field name="context">{"search_default_group_month": 1}</field>
         <field name="search_view_id" ref="view_dashboard_employee_month_search"/>
     </record>
 
@@ -184,6 +186,10 @@
         <field name="arch" type="xml">
             <search>
                 <field name="department_id"/>
+                <field name="report_month"/>
+                <group string="Group By">
+                    <filter string="Month" name="group_month" context="{'group_by': 'report_month'}"/>
+                </group>
             </search>
         </field>
     </record>
@@ -193,7 +199,7 @@
         <field name="res_model">dashboard.department.monthly</field>
         <field name="view_mode">tree</field>
         <field name="views" eval="[(ref('view_dashboard_department_month_tree'), 'tree')]"/>
-        <field name="context">{"search_default_current_month": 1}</field>
+        <field name="context">{"search_default_group_month": 1}</field>
         <field name="search_view_id" ref="view_dashboard_department_month_search"/>
     </record>
 
@@ -202,7 +208,7 @@
         <field name="name">dashboard.report.employee.daily.tree</field>
         <field name="model">dashboard.report</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="tag == 'red'" decoration-info="tag == 'blue'" decoration-success="tag == 'green'" decoration-muted="tag == 'leave'">
+            <tree decoration-danger="tag == 'red'" decoration-info="tag == 'blue'" decoration-success="tag == 'green'">
                 <field name="report_date" string="Date"/>
                 <field name="employee_id" string="Employee"/>
                 <field name="department_id" string="Department"/>

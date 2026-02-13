@@ -25,8 +25,7 @@ class DashboardReport(models.Model):
     tag = fields.Selection([
         ('red', 'Red'),
         ('blue', 'Blue'),
-        ('green', 'Green'),
-        ('leave', 'Leave')
+        ('green', 'Green')
     ], string='Tag', compute='_compute_tag', store=True)
     report_month = fields.Char('Report Month', compute='_compute_report_month', store=True)
     is_current_month = fields.Boolean('Is Current Month', compute='_compute_is_current_month', store=True)
@@ -38,12 +37,24 @@ class DashboardReport(models.Model):
     def sync_dashboard_data(self):
         """
         Sync data from daily_work_report and daily_tasks into dashboard.report.
-        Performs incremental updates (upserts) instead of full deletion.
+        Optimized for performance by filtering by date and batching.
         """
-        # Removed: self.env['dashboard.report'].search([]).unlink()
+        # Sync only for the last 30 days to avoid performance issues
+        sync_limit_date = date.today() - timedelta(days=30)
+        sync_limit_str = fields.Date.to_string(sync_limit_date)
 
-        # Sync from daily_work_report (employee.report and report)
-        employee_reports = self.env['employee.report'].search([])
+        # 1. Sync from daily_work_report (employee.report)
+        # -----------------------------------------------
+        employee_reports = self.env['employee.report'].search([('date', '>=', sync_limit_str)])
+        
+        # Pre-fetch existing dashboard records for comparison
+        existing_dwr = self.env['dashboard.report'].search([
+            ('report_type', '=', 'dwr'),
+            ('report_date', '>=', sync_limit_str)
+        ])
+        # Map: (employee_id, report_date) -> record
+        dwr_map = {(r.employee_id.id, r.report_date): r for r in existing_dwr}
+
         for emp_rep in employee_reports:
             total_hours = 0.0
             for line in emp_rep.report_ids:
@@ -54,7 +65,6 @@ class DashboardReport(models.Model):
                     except Exception:
                         pass
             
-            # Upsert DWR record
             report_name = f"DWR {emp_rep.name.name if emp_rep.name else ''} {emp_rep.date}"
             vals = {
                 'name': report_name,
@@ -63,28 +73,40 @@ class DashboardReport(models.Model):
                 'department_id': emp_rep.department_id.id if emp_rep.department_id else False,
                 'working_hours': total_hours,
                 'report_type': 'dwr',
-                'submitted_on': False, # DWR in this module context seems to not track specific submission time for the report itself unless we add it, but existing logic had False. Keeping consistent but safe.
-                # Actually, check if we can get submission time from somewhere? The other sync logic used False. 
-                # Let's keep it as is for now to match original logic but just upsert.
+                'submitted_on': emp_rep.submitted_time, # FIX: Correctly map from source
                 'is_late': False,
                 'is_missed': False,
                 'manager_marks': 0,
             }
             
-            # Try to find existing record to update
-            existing = self.env['dashboard.report'].search([
-                ('report_type', '=', 'dwr'),
-                ('employee_id', '=', vals['employee_id']),
-                ('report_date', '=', vals['report_date'])
-            ], limit=1)
+            emp_id = vals['employee_id']
+            rep_date = vals['report_date']
             
+            existing = dwr_map.get((emp_id, rep_date))
             if existing:
-                existing.write(vals)
+                # Sum hours if we encounter another report for same day (e.g. second manager)
+                new_hours = existing.working_hours + total_hours
+                existing.write({
+                    'working_hours': new_hours,
+                    'submitted_on': emp_rep.submitted_time or existing.submitted_on
+                })
             else:
-                self.env['dashboard.report'].create(vals)
+                new_rec = self.env['dashboard.report'].create(vals)
+                # Update map for subsequent iterations in this same batch
+                dwr_map[(emp_id, rep_date)] = new_rec
 
-        # Sync from daily_tasks (daily.task)
-        daily_tasks = self.env['daily.task'].search([])
+        # 2. Sync from daily_tasks (daily.task)
+        # -------------------------------------
+        daily_tasks = self.env['daily.task'].search([('date', '>=', sync_limit_str)])
+        
+        # Pre-fetch existing POD/SOD dashboard records
+        existing_tasks = self.env['dashboard.report'].search([
+            ('report_type', 'in', ('pod', 'sod')),
+            ('report_date', '>=', sync_limit_str)
+        ])
+        # Map: (type, employee_id, report_date) -> record
+        task_map = {(r.report_type, r.employee_id.id, r.report_date): r for r in existing_tasks}
+
         for task in daily_tasks:
             emp_name = task.employee_id.name if task.employee_id else ''
             emp_id = task.employee_id.id if task.employee_id else False
@@ -101,31 +123,22 @@ class DashboardReport(models.Model):
                     'working_hours': 0.0,
                     'report_type': 'pod',
                     'submitted_on': task.pod_submitted_date if getattr(task, 'pod_submitted', False) else False,
-                    'is_late': False, # Computed field will handle logic if triggered, but here we set initial
+                    'is_late': False,
                     'is_missed': not getattr(task, 'pod_submitted', False),
                     'manager_marks': 0,
                 }
                 
-                existing_pod = self.env['dashboard.report'].search([
-                    ('report_type', '=', 'pod'),
-                    ('employee_id', '=', emp_id),
-                    ('report_date', '=', task.date)
-                ], limit=1)
-                
+                existing_pod = task_map.get(('pod', emp_id, task.date))
                 if existing_pod:
                     existing_pod.write(pod_vals)
                 else:
-                    self.env['dashboard.report'].create(pod_vals)
+                    new_pod = self.env['dashboard.report'].create(pod_vals)
+                    task_map[('pod', emp_id, task.date)] = new_pod
             except Exception:
                 pass
 
             # Upsert SOD record
-            # Consider SOD submitted when state == 'done' or sod_description present
-            sod_submitted = False
-            if getattr(task, 'state', False) == 'done':
-                sod_submitted = True
-            if getattr(task, 'sod_description', False):
-                sod_submitted = True
+            sod_submitted = (getattr(task, 'state', False) == 'done') or bool(getattr(task, 'sod_description', False))
             
             try:
                 sod_name = f"SOD {emp_name} {task.date}"
@@ -136,33 +149,25 @@ class DashboardReport(models.Model):
                     'department_id': dept_id,
                     'working_hours': 0.0,
                     'report_type': 'sod',
-                    'submitted_on': fields.Datetime.now() if sod_submitted else False, # Note: using now() for sync might be inaccurate if repeated. Ideally should be stored on task. Assuming acceptable for now.
+                    'submitted_on': False, 
                     'is_late': False,
-                    'is_missed': False, # logic handled by computed
+                    'is_missed': False,
                     'manager_marks': 0,
                 }
-                # Fix: Don't overwrite submitted_on with now() if it's already set? 
-                # The original logic used fields.Datetime.now() if sod_submitted. 
-                # Only strictly correct if we captured that time previously.
-                # For upsert, if we already have a record and it has submitted_on, we might want to keep it?
-                # But original logic had no history, so it always reset. 
-                # Let's keep original behavior for now but wrapped in upsert.
                 
-                existing_sod = self.env['dashboard.report'].search([
-                    ('report_type', '=', 'sod'),
-                    ('employee_id', '=', emp_id),
-                    ('report_date', '=', task.date)
-                ], limit=1)
-                
+                existing_sod = task_map.get(('sod', emp_id, task.date))
                 if existing_sod:
-                    # If already submitted, don't update submitted_on with now() to avoid shifting time?
-                    # Original logic: always now() if submitted.
-                    # We should probably respect existing if it exists.
-                    if existing_sod.submitted_on:
+                    # Keep existing submitted_on if already set
+                    if sod_submitted and not existing_sod.submitted_on:
+                        sod_vals['submitted_on'] = fields.Datetime.now()
+                    elif existing_sod.submitted_on:
                         sod_vals['submitted_on'] = existing_sod.submitted_on
                     existing_sod.write(sod_vals)
                 else:
-                    self.env['dashboard.report'].create(sod_vals)
+                    if sod_submitted:
+                        sod_vals['submitted_on'] = fields.Datetime.now()
+                    new_sod = self.env['dashboard.report'].create(sod_vals)
+                    task_map[('sod', emp_id, task.date)] = new_sod
             except Exception:
                 pass
 
@@ -300,12 +305,14 @@ class DashboardReport(models.Model):
         for rec in self:
             rec.is_missed = not rec.submitted_on
 
-    @api.depends('working_hours')
+    @api.depends('working_hours', 'report_type')
     def _compute_tag(self):
         for rec in self:
-            if rec.working_hours == 0:
-                rec.tag = 'leave'
-            elif rec.working_hours < 8:
+            if rec.report_type != 'dwr' or rec.working_hours == 0:
+                rec.tag = False
+                continue
+                
+            if rec.working_hours < 8:
                 rec.tag = 'red'
             elif rec.working_hours > 10:
                 rec.tag = 'green'
@@ -522,9 +529,7 @@ class MissedReport(models.Model):
             rec.has_tag_green = self.env['dashboard.report'].search_count([
                 ('employee_id', '=', emp_id), ('is_missed', '=', True), ('tag', '=', 'green')
             ]) > 0
-            rec.has_tag_leave = self.env['dashboard.report'].search_count([
-                ('employee_id', '=', emp_id), ('is_missed', '=', True), ('tag', '=', 'leave')
-            ]) > 0
+            rec.has_tag_leave = False
 
 
 class EmployeeMonthly(models.Model):
@@ -587,7 +592,15 @@ class EmployeeMonthly(models.Model):
                 'total_work_minutes': total_minutes,
                 'working_hours': hours,
             }
-            rec = self.search([('employee_id', '=', emp.id), ('report_month', '=', vals['report_month'])], limit=1)
+            # Cleanup potential duplicates from previous buggy runs
+            all_recs = self.search([('employee_id', '=', emp.id), ('report_month', '=', vals['report_month'])])
+            if len(all_recs) > 1:
+                # Keep the first one, unlink others
+                all_recs[1:].unlink()
+                rec = all_recs[0]
+            else:
+                rec = all_recs
+
             if rec:
                 rec.write(vals)
             else:
